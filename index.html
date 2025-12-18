@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bitarcell Admin</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background:#f2f2f2;
+  padding:15px;
+}
+h1,h2 { text-align:center; }
+.card {
+  background:#fff;
+  padding:15px;
+  border-radius:8px;
+  margin-bottom:15px;
+}
+input, select, button {
+  width:100%;
+  padding:12px;
+  margin-top:8px;
+}
+button {
+  background:#007bff;
+  color:#fff;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+}
+button.delete {
+  background:#dc3545;
+}
+button.edit {
+  background:#ffc107;
+  margin-left:5px;
+}
+button.pay {
+  background:#28a745;
+  margin-left:5px;
+}
+.small-btn {
+  padding:3px 6px;
+  font-size:12px;
+  border-radius:3px;
+  margin:2px 2px 0 0;
+  width:auto;
+  display:inline-block;
+}
+.list {
+  font-size:14px;
+  margin-top:10px;
+}
+.item {
+  background:#eee;
+  padding:10px;
+  border-radius:5px;
+  margin-top:5px;
+}
+.item.unpaid {
+  background:#ffd6d6; /* light red for unpaid */
+}
+.small {
+  font-size:12px;
+  color:#555;
+}
+.flex-row {
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.flex-row input, .flex-row button {
+  flex:1;
+}
+</style>
+</head>
+
+<body>
+
+<h1>📱 Bitarcell</h1>
+
+<!-- LOGIN -->
+<div class="card" id="loginCard">
+  <h2>Admin Login</h2>
+  <input id="loginUser" placeholder="Username">
+  <input id="loginPass" type="password" placeholder="Password">
+  <button id="loginBtn">Login</button>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+
+<div class="card">
+  <h2>Add Service</h2>
+  <input id="sName" placeholder="Service name">
+  <input id="sCost" type="number" placeholder="Cost price">
+  <input id="sSell" type="number" placeholder="Selling price">
+  <button id="addServiceBtn">Save Service</button>
+</div>
+
+<div class="card">
+  <h2>Add Sale</h2>
+  <input id="cName" placeholder="Customer name">
+  <input id="cPhone" placeholder="Phone number">
+  <select id="serviceSelect"></select>
+  <select id="salePaidStatus">
+    <option value="Paid">Paid</option>
+    <option value="Unpaid">Unpaid</option>
+  </select>
+  <button id="addSaleBtn">Save Sale</button>
+</div>
+
+<div class="card">
+  <h2>Search Sales</h2>
+  <input id="searchInput" placeholder="Enter Name, Phone, or Service">
+  <button id="searchBtn">Search</button>
+  <button id="clearSearchBtn">Clear</button>
+  <div id="searchResults" class="list"></div>
+</div>
+
+<div class="card">
+  <h2>Profit Calculation</h2>
+  <div class="flex-row">
+    <button id="profitTodayBtn">Today</button>
+    <button id="profitMonthBtn">This Month</button>
+    <button id="profitYearBtn">This Year</button>
+  </div>
+  <h3>Custom Date Range</h3>
+  <div class="flex-row">
+    <input type="date" id="startDate">
+    <input type="date" id="endDate">
+    <button id="profitCustomBtn">Calculate</button>
+  </div>
+  <div id="profitResults" class="list"></div>
+</div>
+
+<div class="card">
+  <h2>Saved Profit Totals</h2>
+  <div id="savedProfitList" class="list">
+    <p><b>Daily Profit:</b> LBP<span id="dailyProfit">0</span></p>
+    <p><b>Monthly Profit:</b> LBP<span id="monthlyProfit">0</span></p>
+    <p><b>Yearly Profit:</b> LBP<span id="yearlyProfit">0</span></p>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Sales</h2>
+  <div id="salesList" class="list"></div>
+</div>
+
+<div class="card">
+  <h2>Services</h2>
+  <div id="servicesList" class="list"></div>
+</div>
+
+<div class="card">
+  <h2>Grouped Services</h2>
+  <div id="groupedServicesList" class="list"></div>
+</div>
+
+</div>
+
+<script>
+/* ===== ELEMENTS ===== */
+const loginUser = document.getElementById("loginUser");
+const loginPass = document.getElementById("loginPass");
+const loginCard = document.getElementById("loginCard");
+const app = document.getElementById("app");
+
+const sName = document.getElementById("sName");
+const sCost = document.getElementById("sCost");
+const sSell = document.getElementById("sSell");
+const cName = document.getElementById("cName");
+const cPhone = document.getElementById("cPhone");
+const serviceSelect = document.getElementById("serviceSelect");
+const salesList = document.getElementById("salesList");
+const servicesList = document.getElementById("servicesList");
+const groupedServicesList = document.getElementById("groupedServicesList");
+const salePaidStatus = document.getElementById("salePaidStatus");
+
+const loginBtn = document.getElementById("loginBtn");
+const addServiceBtn = document.getElementById("addServiceBtn");
+const addSaleBtn = document.getElementById("addSaleBtn");
+
+const searchInput = document.getElementById("searchInput");
+const searchBtn = document.getElementById("searchBtn");
+const clearSearchBtn = document.getElementById("clearSearchBtn");
+const searchResults = document.getElementById("searchResults");
+
+const profitTodayBtn = document.getElementById("profitTodayBtn");
+const profitMonthBtn = document.getElementById("profitMonthBtn");
+const profitYearBtn = document.getElementById("profitYearBtn");
+const profitCustomBtn = document.getElementById("profitCustomBtn");
+const startDate = document.getElementById("startDate");
+const endDate = document.getElementById("endDate");
+const profitResults = document.getElementById("profitResults");
+
+const dailyProfitSpan = document.getElementById("dailyProfit");
+const monthlyProfitSpan = document.getElementById("monthlyProfit");
+const yearlyProfitSpan = document.getElementById("yearlyProfit");
+
+const ADMIN_USER = "admin";
+const ADMIN_PASS = "admin123";
+
+/* ===== DATA ===== */
+let services = JSON.parse(localStorage.getItem("bitarcell_services")) || [];
+let sales = JSON.parse(localStorage.getItem("bitarcell_sales")) || [];
+let editingSaleId = null;
+let editingServiceId = null;
+
+let savedProfit = JSON.parse(localStorage.getItem("bitarcell_saved_profit")) || {
+  daily: 0,
+  monthly: 0,
+  yearly: 0
+};
+
+/* ===== EVENTS ===== */
+loginBtn.onclick = login;
+addServiceBtn.onclick = addService;
+addSaleBtn.onclick = addSale;
+searchBtn.onclick = searchSales;
+clearSearchBtn.onclick = () => { searchInput.value=""; searchResults.innerHTML=""; };
+
+profitTodayBtn.onclick = () => showProfit("today");
+profitMonthBtn.onclick = () => showProfit("month");
+profitYearBtn.onclick = () => showProfit("year");
+profitCustomBtn.onclick = () => showProfit("custom");
+
+/* ===== LOGIN ===== */
+function login() {
+  if(loginUser.value === ADMIN_USER && loginPass.value === ADMIN_PASS) {
+    localStorage.setItem("bitarcell_login", "yes");
+    showApp();
+  } else {
+    alert("Wrong login");
+  }
+}
+
+function showApp() {
+  loginCard.style.display = "none";
+  app.style.display = "block";
+  renderServices();
+  renderSales();
+  renderGroupedServices();
+  recalcSavedProfit(); // auto calculate totals
+}
+
+/* ===== LOCALSTORAGE ===== */
+function saveData() {
+  localStorage.setItem("bitarcell_services", JSON.stringify(services));
+  localStorage.setItem("bitarcell_sales", JSON.stringify(sales));
+  localStorage.setItem("bitarcell_saved_profit", JSON.stringify(savedProfit));
+}
+
+/* ===== SERVICES ===== */
+function addService() {
+  if(!sName.value || !sCost.value || !sSell.value){
+    alert("Please fill all service fields");
+    return;
+  }
+
+  if(editingServiceId) {
+    const service = services.find(s => s.id === editingServiceId);
+    service.name = sName.value;
+    service.cost = Number(sCost.value);
+    service.sell = Number(sSell.value);
+    editingServiceId = null;
+    addServiceBtn.textContent = "Save Service";
+  } else {
+    const newService = {
+      id: Date.now(),
+      name: sName.value,
+      cost: Number(sCost.value),
+      sell: Number(sSell.value)
+    };
+    services.push(newService);
+  }
+
+  saveData();
+  sName.value = sCost.value = sSell.value = "";
+  renderServices();
+  renderGroupedServices();
+}
+
+function renderServices() {
+  serviceSelect.innerHTML = services.map(s =>
+    `<option value="${s.id}">${s.name} - LBP${s.sell}</option>`
+  ).join("");
+
+  servicesList.innerHTML = services.map(s =>
+    `<div class="item">
+      <b>${s.name}</b> - LBP${s.sell} (Cost: LBP${s.cost})
+      <button class="edit small-btn" onclick="editService(${s.id})">Edit</button>
+      <button class="delete small-btn" onclick="deleteService(${s.id})">Delete</button>
+    </div>`).join("");
+}
+
+function editService(id){
+  const service = services.find(s => s.id === id);
+  if(!service) return;
+  sName.value = service.name;
+  sCost.value = service.cost;
+  sSell.value = service.sell;
+  editingServiceId = id;
+  addServiceBtn.textContent = "Update Service";
+}
+
+function deleteService(id){
+  if(!confirm("Are you sure you want to delete this service?")) return;
+  services = services.filter(s => s.id !== id);
+  saveData();
+  renderServices();
+  renderGroupedServices();
+}
+
+/* ===== GROUPED SERVICES ===== */
+function renderGroupedServices() {
+  const groups = {};
+  services.forEach(s => {
+    const prefix = s.name.split(" ")[0];
+    if(!groups[prefix]) groups[prefix] = [];
+    groups[prefix].push(s);
+  });
+
+  let html = "";
+  for(const prefix in groups){
+    html += `<div class="item"><b>${prefix}</b><br>`;
+    groups[prefix].forEach(s => {
+      html += `${s.name} - Sell: LBP${s.sell}, Cost: LBP${s.cost}<br>`;
+    });
+    html += `</div>`;
+  }
+  groupedServicesList.innerHTML = html;
+}
+
+/* ===== SALES ===== */
+function addSale() {
+  if(!cName.value || !cPhone.value || !serviceSelect.value){
+    alert("Please fill all sale fields");
+    return;
+  }
+  const service = services.find(s => s.id == serviceSelect.value);
+  const profit = service.sell - service.cost;
+  const paidStatus = salePaidStatus.value;
+
+  if(editingSaleId) {
+    const sale = sales.find(s => s.id === editingSaleId);
+    sale.customer = cName.value;
+    sale.phone = cPhone.value;
+    sale.service = service.name;
+    sale.sell = service.sell;
+    sale.profit = profit;
+    sale.date = new Date().toLocaleString();
+    sale.paid = paidStatus;
+    editingSaleId = null;
+    addSaleBtn.textContent = "Save Sale";
+  } else {
+    const newSale = {
+      id: Date.now(),
+      customer: cName.value,
+      phone: cPhone.value,
+      service: service.name,
+      sell: service.sell,
+      profit: profit,
+      date: new Date().toLocaleString(),
+      paid: paidStatus
+    };
+    sales.push(newSale);
+  }
+
+  saveData();
+  recalcSavedProfit();
+  cName.value = cPhone.value = "";
+  renderSales();
+}
+
+function markAsPaid(id) {
+  const sale = sales.find(s => s.id === id);
+  if(!sale) return;
+  sale.paid = "Paid";
+  saveData();
+  renderSales();
+}
+
+function deleteSale(id){
+  if(!confirm("Are you sure you want to delete this sale?")) return;
+  sales = sales.filter(s => s.id !== id);
+  saveData();
+  recalcSavedProfit();
+  renderSales();
+}
+
+function editSale(id){
+  const sale = sales.find(s => s.id === id);
+  if(!sale) return;
+  cName.value = sale.customer;
+  cPhone.value = sale.phone;
+  const serviceObj = services.find(s => s.name === sale.service);
+  if(serviceObj) serviceSelect.value = serviceObj.id;
+  salePaidStatus.value = sale.paid || "Paid";
+  editingSaleId = id;
+  addSaleBtn.textContent = "Update Sale";
+}
+
+function renderSales() {
+  salesList.innerHTML = sales.map(s =>
+    `<div class="item ${s.paid==="Unpaid"?"unpaid":""}">
+      <b>${s.customer}</b> (${s.phone})<br>
+      ${s.service} - Sell: LBP${s.sell}<br>
+      Profit: <b>LBP${s.profit}</b><br>
+      Status: <b>${s.paid}</b><br>
+      <span class="small">${s.date}</span>
+      <button class="delete small-btn" onclick="deleteSale(${s.id})">Delete</button>
+      <button class="edit small-btn" onclick="editSale(${s.id})">Edit</button>
+      ${s.paid==="Unpaid"?`<button class="pay small-btn" onclick="markAsPaid(${s.id})">Mark as Paid</button>`:""}
+    </div>`).join("");
+}
+
+/* ===== SEARCH FEATURE ===== */
+function searchSales() {
+  const query = searchInput.value.toLowerCase().trim();
+  if(!query) { alert("Enter a name, phone, or service to search."); return; }
+  const filtered = sales.filter(s =>
+    s.customer.toLowerCase().includes(query) ||
+    s.phone.includes(query) ||
+    s.service.toLowerCase().includes(query)
+  );
+  renderSearchResults(filtered);
+}
+
+function renderSearchResults(results) {
+  if(results.length === 0) {
+    searchResults.innerHTML = "<i>No matching sales found</i>";
+    return;
+  }
+  searchResults.innerHTML = results.map(s =>
+    `<div class="item ${s.paid==="Unpaid"?"unpaid":""}">
+      <b>${s.customer}</b> (${s.phone})<br>
+      ${s.service} - Sell: LBP${s.sell}<br>
+      Profit: <b>LBP${s.profit}</b><br>
+      Status: <b>${s.paid}</b><br>
+      <span class="small">${s.date}</span>
+      ${s.paid==="Unpaid"?`<button class="pay small-btn" onclick="markAsPaid(${s.id})">Mark as Paid</button>`:""}
+    </div>`).join("");
+}
+
+/* ===== PROFIT CALCULATION ===== */
+function showProfit(type) {
+  let start, end = new Date();
+  const today = new Date();
+  switch(type){
+    case "today":
+      start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      break;
+    case "month":
+      start = new Date(today.getFullYear(), today.getMonth(), 1);
+      break;
+    case "year":
+      start = new Date(today.getFullYear(), 0, 1);
+      break;
+    case "custom":
+      if(!startDate.value || !endDate.value){
+        alert("Select both start and end date");
+        return;
+      }
+      start = new Date(startDate.value);
+      end = new Date(endDate.value);
+      break;
+  }
+
+  let totalProfit = 0;
+  sales.forEach(s => {
+    const saleDate = new Date(s.date);
+    if(saleDate >= start && saleDate <= end){
+      totalProfit += s.profit;
+    }
+  });
+
+  profitResults.innerHTML = `<b>Profit: LBP${totalProfit}</b>`;
+}
+
+/* ===== SAVED PROFIT TOTALS ===== */
+function recalcSavedProfit() {
+  let daily = 0, monthly = 0, yearly = 0;
+  const today = new Date();
+
+  sales.forEach(sale => {
+    const saleDate = new Date(sale.date);
+
+    if(saleDate.toDateString() === today.toDateString()){
+      daily += sale.profit;
+    }
+
+    if(saleDate.getFullYear() === today.getFullYear() &&
+       saleDate.getMonth() === today.getMonth()){
+      monthly += sale.profit;
+    }
+
+    if(saleDate.getFullYear() === today.getFullYear()){
+      yearly += sale.profit;
+    }
+  });
+
+  savedProfit.daily = daily;
+  savedProfit.monthly = monthly;
+  savedProfit.yearly = yearly;
+
+  saveData();
+  renderSavedProfit();
+}
+
+function renderSavedProfit() {
+  dailyProfitSpan.textContent = savedProfit.daily;
+  monthlyProfitSpan.textContent = savedProfit.monthly;
+  yearlyProfitSpan.textContent = savedProfit.yearly;
+}
+
+/* ===== AUTO LOGIN ===== */
+if(localStorage.getItem("bitarcell_login")) showApp();
+</script>
+
+</body>
+</html>
